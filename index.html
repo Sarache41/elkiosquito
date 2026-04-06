@@ -336,9 +336,56 @@
   }
   .new-client-btn:hover { background: #d9713e; }
   .new-client-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+
+  /* Loading overlay */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 100;
+  }
+  .overlay.hidden { display: none; }
+
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .overlay-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .overlay-msg { color: var(--muted); font-size: 0.85rem; text-align: center; padding: 0 32px; }
+  .overlay-icon { font-size: 3rem; }
 </style>
 </head>
 <body>
+
+<!-- Loading overlay -->
+<div id="loadingOverlay" class="overlay">
+  <div class="spinner"></div>
+  <div class="overlay-title">Cargando El Kiosquito</div>
+  <div class="overlay-msg" id="loadingMsg">Conectando con Google Sheets...</div>
+</div>
+
+<!-- Error overlay -->
+<div id="errorOverlay" class="overlay hidden">
+  <div class="overlay-icon">⚠️</div>
+  <div class="overlay-title">Sin conexión</div>
+  <div class="overlay-msg">No se pudo conectar con Google Sheets. Revisa tu conexión e intenta de nuevo.</div>
+  <button class="btn-primary" style="margin-top:16px; max-width:200px" onclick="location.reload()">Reintentar</button>
+</div>
 
 <header>
   <h1>🛒 El Kiosquito</h1>
@@ -415,33 +462,80 @@
 
 <script>
   // ═══════════════════════════════
-  // CONFIGURACIÓN — editá esto
+  // CONFIGURACIÓN
   // ═══════════════════════════════
 
-  const CLIENTES = [
-    "Ana", "Sara", "Mariel", "Marcos", "Leia"
-  ];
-
-  const PRODUCTOS = [
-    { nombre: "Coca Cola 500ml", precio: 800 },
-    { nombre: "Agua mineral", precio: 400 },
-    { nombre: "Alfajor triple", precio: 650 },
-    { nombre: "Snickers", precio: 700 },
-    { nombre: "Papas fritas", precio: 550 },
-    { nombre: "Oreo", precio: 600 },
-    { nombre: "Yogur", precio: 450 },
-    { nombre: "Jugo caja", precio: 500 },
-  ];
+  const SHEETS_URL = 'https://script.google.com/macros/s/AKfycby69L2t0yP7eCpYwHw_ixSmTSQCj3-U_Rk8gNlT6gv7AYebE8PmHeAx6Kfcd6e0-A6N/exec';
 
   // ═══════════════════════════════
   // ESTADO
   // ═══════════════════════════════
 
-  const clientesExtra = JSON.parse(localStorage.getItem('kiosco_clientes_extra') || '[]');
-  let clientes = [...CLIENTES, ...clientesExtra];
+  let clientes = [];
+  let PRODUCTOS = [];
   let selectedName = null;
-  let quantities = PRODUCTOS.map(() => 0);
+  let quantities = [];
   let registros = JSON.parse(localStorage.getItem('kiosco_registros') || '[]');
+
+  // ═══════════════════════════════
+  // CARGA DESDE SHEETS
+  // ═══════════════════════════════
+
+  function mostrarCargando(msg) {
+    document.getElementById('loadingMsg').textContent = msg;
+    document.getElementById('loadingOverlay').classList.remove('hidden');
+  }
+
+  function ocultarCargando() {
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  }
+
+  function jsonp(url) {
+    return new Promise((resolve, reject) => {
+      const cbName = 'cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+      const script = document.createElement('script');
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error('Timeout'));
+      }, 8000);
+
+      function cleanup() {
+        clearTimeout(timeout);
+        delete window[cbName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+      }
+
+      window[cbName] = (data) => {
+        cleanup();
+        resolve(data);
+      };
+
+      script.src = `${url}&callback=${cbName}`;
+      script.onerror = () => { cleanup(); reject(new Error('Script error')); };
+      document.head.appendChild(script);
+    });
+  }
+
+  async function cargarDesdeSheets() {
+    mostrarCargando('Cargando clientes y productos...');
+    try {
+      const [resClientes, resProductos] = await Promise.all([
+        jsonp(`${SHEETS_URL}?accion=clientes`),
+        jsonp(`${SHEETS_URL}?accion=productos`)
+      ]);
+
+      if (resClientes.status === 'ok') clientes = resClientes.datos;
+      if (resProductos.status === 'ok') PRODUCTOS = resProductos.datos;
+
+      quantities = PRODUCTOS.map(() => 0);
+      ocultarCargando();
+      init();
+    } catch(err) {
+      ocultarCargando();
+      document.getElementById('errorOverlay').classList.remove('hidden');
+      console.error('Error cargando datos:', err);
+    }
+  }
 
   // ═══════════════════════════════
   // RENDER
@@ -456,16 +550,13 @@
     sel.classList.toggle('has-value', !!sel.value);
   }
 
-  function init() {
-    renderNameGrid();
-
-    // Productos
+  function renderProductos() {
     const list = document.getElementById('productList');
     list.innerHTML = PRODUCTOS.map((p, i) => `
       <div class="product-row" id="row-${i}">
         <div class="product-info">
           <div class="product-name">${p.nombre}</div>
-          <div class="product-price">$${p.precio.toLocaleString('es-AR')}</div>
+          <div class="product-price">$${p.precio.toLocaleString('es-CL')}</div>
         </div>
         <div class="qty-control">
           <button class="qty-btn minus" onclick="changeQty(${i}, -1)">−</button>
@@ -474,6 +565,11 @@
         </div>
       </div>
     `).join('');
+  }
+
+  function init() {
+    renderNameGrid();
+    renderProductos();
   }
 
   // ═══════════════════════════════
@@ -493,7 +589,6 @@
     const val = document.getElementById('newClientInput').value.trim();
     document.getElementById('btnAddClient').disabled = val.length < 2;
     if (val.length > 0) {
-      document.querySelectorAll('.name-btn').forEach(b => b.classList.remove('selected'));
       selectedName = null;
       document.getElementById('btnToProducts').disabled = true;
     }
@@ -507,18 +602,13 @@
     const exists = clientes.find(c => c.toLowerCase() === name.toLowerCase());
     const finalName = exists || name;
 
-    if (!exists) {
-      clientes.push(name);
-      const extra = clientes.filter(c => !CLIENTES.includes(c));
-      localStorage.setItem('kiosco_clientes_extra', JSON.stringify(extra));
-    }
+    if (!exists) clientes.push(name);
 
     selectedName = finalName;
     renderNameGrid();
     document.getElementById('nameSelect').value = finalName;
     document.getElementById('nameSelect').classList.add('has-value');
     document.getElementById('btnToProducts').disabled = false;
-
     input.value = '';
     document.getElementById('btnAddClient').disabled = true;
   }
@@ -527,9 +617,7 @@
     quantities[i] = Math.max(0, quantities[i] + delta);
     document.getElementById(`qty-${i}`).textContent = quantities[i];
     document.getElementById(`row-${i}`).classList.toggle('has-items', quantities[i] > 0);
-
-    const hasItems = quantities.some(q => q > 0);
-    document.getElementById('btnConfirm').disabled = !hasItems;
+    document.getElementById('btnConfirm').disabled = !quantities.some(q => q > 0);
   }
 
   function goToProducts() {
@@ -558,15 +646,13 @@
     items.push(`
       <div class="total-row">
         <span>TOTAL</span>
-        <span>$${total.toLocaleString('es-AR')}</span>
+        <span>$${total.toLocaleString('es-CL')}</span>
       </div>
     `);
 
     list.innerHTML = items.join('');
     showScreen(3);
   }
-
-  const SHEETS_URL = 'https://script.google.com/macros/s/AKfycby69L2t0yP7eCpYwHw_ixSmTSQCj3-U_Rk8gNlT6gv7AYebE8PmHeAx6Kfcd6e0-A6N/exec';
 
   function confirm() {
     const fecha = new Date().toLocaleString('es-CL');
@@ -582,22 +668,17 @@
     });
 
     const registro = { fecha, cliente: selectedName, items, total };
-
-    // Guardar local como respaldo
     registros.push(registro);
     localStorage.setItem('kiosco_registros', JSON.stringify(registros));
 
-    // Mostrar pantalla de éxito de inmediato
     document.getElementById('successMsg').innerHTML =
       `<strong>${selectedName}</strong>, se anotaron $${total.toLocaleString('es-CL')} el ${fecha}.<br><br>¡Gracias, que lo disfrutes!`;
     showScreen(4);
 
-    // Enviar a Google Sheets usando un iframe oculto para evitar CORS
     enviarASheets(registro);
   }
 
   function enviarASheets(registro) {
-    // Creamos un iframe y un form ocultos que hacen POST directo a Apps Script
     const iframe = document.createElement('iframe');
     iframe.name = 'sheets_iframe_' + Date.now();
     iframe.style.display = 'none';
@@ -618,7 +699,6 @@
     document.body.appendChild(form);
     form.submit();
 
-    // Limpiar después de 5 segundos
     setTimeout(() => {
       document.body.removeChild(form);
       document.body.removeChild(iframe);
@@ -634,8 +714,10 @@
     sel.value = '';
     sel.classList.remove('has-value');
     quantities.forEach((_, i) => {
-      document.getElementById(`qty-${i}`).textContent = '0';
-      document.getElementById(`row-${i}`).classList.remove('has-items');
+      const el = document.getElementById(`qty-${i}`);
+      if (el) el.textContent = '0';
+      const row = document.getElementById(`row-${i}`);
+      if (row) row.classList.remove('has-items');
     });
     document.getElementById('newClientInput').value = '';
     document.getElementById('btnAddClient').disabled = true;
@@ -657,7 +739,7 @@
   }
 
   // ═══════════════════════════════
-  // PANEL ADMIN (doble tap en header)
+  // PANEL ADMIN (3 clics en header)
   // ═══════════════════════════════
   let tapCount = 0;
   document.querySelector('header h1').addEventListener('click', () => {
@@ -683,11 +765,11 @@
       txt += `${nombre}: $${total.toLocaleString('es-CL')}\n`;
     });
     txt += `\nTotal de registros: ${data.length}`;
-
     alert(txt);
   }
 
-  init();
+  // Iniciar cargando desde Sheets
+  cargarDesdeSheets();
 </script>
 </body>
 </html>
