@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Kiosquito</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e0c;
+    --surface: #1c1a16;
+    --border: #2e2b24;
+    --accent: #f5c842;
+    --accent2: #e8824a;
+    --text: #f0ece2;
+    --muted: #7a7568;
+    --success: #5dba7e;
+    --radius: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+  }
+
+  header {
+    width: 100%;
+    max-width: 480px;
+    margin-bottom: 32px;
+    text-align: center;
+  }
+
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 2.4rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  header p {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-top: 6px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    width: 100%;
+    max-width: 480px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  /* Step indicator */
+  .steps {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 28px;
+  }
+
+  .step-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: all 0.3s;
+  }
+  .step-dot.active { background: var(--accent); transform: scale(1.4); }
+  .step-dot.done { background: var(--success); }
+
+  /* Name select */
+  .name-select-wrapper {
+    position: relative;
+  }
+
+  .name-select-wrapper::after {
+    content: '▾';
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+    font-size: 1rem;
+  }
+
+  .name-select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 15px 40px 15px 16px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .name-select:focus { border-color: var(--accent); }
+  .name-select.has-value { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+  .name-select option { background: #1c1a16; color: #f0ece2; font-weight: 400; }
+
+  /* Product list */
+  .product-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .product-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    transition: border-color 0.15s;
+  }
+
+  .product-row.has-items { border-color: var(--accent2); }
+
+  .product-info { flex: 1; }
+  .product-name { font-weight: 500; font-size: 0.95rem; }
+  .product-price { color: var(--muted); font-size: 0.8rem; margin-top: 2px; }
+
+  .qty-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .qty-btn {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    line-height: 1;
+  }
+
+  .qty-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .qty-btn.plus { border-color: var(--accent2); color: var(--accent2); }
+  .qty-count { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; min-width: 20px; text-align: center; }
+
+  /* Summary */
+  .summary-list { display: flex; flex-direction: column; gap: 8px; }
+  .summary-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.95rem;
+  }
+  .summary-row span:last-child { font-weight: 500; color: var(--accent); }
+
+  .total-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    margin-top: 6px;
+  }
+  .total-row span:first-child { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; }
+  .total-row span:last-child { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; color: var(--accent); }
+
+  /* Buttons */
+  .btn-primary {
+    width: 100%;
+    max-width: 480px;
+    padding: 18px;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: var(--radius);
+    font-family: 'Syne', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: all 0.15s;
+    margin-top: 4px;
+  }
+
+  .btn-primary:hover { background: #fdd835; transform: translateY(-1px); }
+  .btn-primary:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+
+  .btn-secondary {
+    width: 100%;
+    max-width: 480px;
+    padding: 14px;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: all 0.15s;
+  }
+
+  .btn-secondary:hover { color: var(--text); border-color: var(--muted); }
+
+  /* Success screen */
+  .success-screen {
+    text-align: center;
+    padding: 40px 20px;
+  }
+
+  .success-icon {
+    font-size: 4rem;
+    margin-bottom: 16px;
+    animation: pop 0.4s ease;
+  }
+
+  @keyframes pop {
+    0% { transform: scale(0); }
+    70% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+  }
+
+  .success-screen h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.8rem;
+    color: var(--success);
+    margin-bottom: 8px;
+  }
+
+  .success-screen p { color: var(--muted); font-size: 0.95rem; line-height: 1.5; }
+
+  .hidden { display: none !important; }
+
+  /* Screen transitions */
+  .screen { animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .tag {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--bg);
+    font-family: 'Syne', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .selected-name-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 700;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    margin-top: 8px;
+  }
+
+  /* New client */
+  .new-client-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 18px 0 14px;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .new-client-divider::before,
+  .new-client-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .new-client-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .new-client-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 13px 16px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .new-client-input::placeholder { color: var(--muted); }
+  .new-client-input:focus { border-color: var(--accent2); }
+
+  .new-client-btn {
+    background: var(--accent2);
+    border: none;
+    border-radius: 12px;
+    padding: 13px 18px;
+    color: white;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .new-client-btn:hover { background: #d9713e; }
+  .new-client-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🛒 El Kiosquito</h1>
+  <p>Anota lo que llevas — te cobro a fin de mes</p>
+</header>
+
+<div class="steps">
+  <div class="step-dot active" id="dot1"></div>
+  <div class="step-dot" id="dot2"></div>
+  <div class="step-dot" id="dot3"></div>
+</div>
+
+<!-- SCREEN 1: Elegí tu nombre -->
+<div id="screen1" class="screen">
+  <div class="card">
+    <div class="card-title">① ¿Quién eres?</div>
+    <div class="name-select-wrapper">
+      <select class="name-select" id="nameSelect" onchange="selectName()">
+        <option value="">— Selecciona tu nombre —</option>
+      </select>
+    </div>
+
+    <div class="new-client-divider">¿No estás en la lista?</div>
+    <div class="new-client-row">
+      <input
+        class="new-client-input"
+        id="newClientInput"
+        type="text"
+        placeholder="Tu nombre..."
+        maxlength="30"
+        oninput="onNewClientType()"
+        onkeydown="if(event.key==='Enter') addNewClient()"
+      />
+      <button class="new-client-btn" id="btnAddClient" disabled onclick="addNewClient()">+ Agregar</button>
+    </div>
+  </div>
+  <button class="btn-primary" id="btnToProducts" disabled onclick="goToProducts()">Elegir productos →</button>
+</div>
+
+<!-- SCREEN 2: Elegí productos -->
+<div id="screen2" class="screen hidden">
+  <div class="card">
+    <div class="card-title">② ¿Qué llevas?</div>
+    <div style="margin-bottom:16px; color: var(--muted); font-size:0.85rem;">
+      Comprando como: <span id="selectedNameLabel" class="selected-name-badge"></span>
+    </div>
+    <div class="product-list" id="productList"></div>
+  </div>
+  <button class="btn-primary" id="btnConfirm" disabled onclick="goToSummary()">Ver resumen →</button>
+  <button class="btn-secondary" onclick="goBack(1)">← Cambiar nombre</button>
+</div>
+
+<!-- SCREEN 3: Confirmar -->
+<div id="screen3" class="screen hidden">
+  <div class="card">
+    <div class="card-title">③ Confirma tu pedido</div>
+    <div class="summary-list" id="summaryList"></div>
+  </div>
+  <button class="btn-primary" onclick="confirm()">✓ Confirmar — lo anoto</button>
+  <button class="btn-secondary" onclick="goBack(2)">← Cambiar productos</button>
+</div>
+
+<!-- SCREEN 4: Éxito -->
+<div id="screen4" class="screen hidden">
+  <div class="card">
+    <div class="success-screen">
+      <div class="success-icon">✅</div>
+      <h2>¡Anotado!</h2>
+      <p id="successMsg"></p>
+    </div>
+  </div>
+  <button class="btn-primary" onclick="reset()">Hacer otra compra</button>
+</div>
+
+<script>
+  // ═══════════════════════════════
+  // CONFIGURACIÓN — editá esto
+  // ═══════════════════════════════
+
+  const CLIENTES = [
+    "Ana", "Bruno", "Carla", "Diego",
+    "Elena", "Facu", "Gabi", "Hernán",
+    "Ivi", "Juli", "Lucas", "Mari"
+  ];
+
+  const PRODUCTOS = [
+    { nombre: "Coca Cola 500ml", precio: 800 },
+    { nombre: "Agua mineral", precio: 400 },
+    { nombre: "Alfajor triple", precio: 650 },
+    { nombre: "Snickers", precio: 700 },
+    { nombre: "Papas fritas", precio: 550 },
+    { nombre: "Oreo", precio: 600 },
+    { nombre: "Yogur", precio: 450 },
+    { nombre: "Jugo caja", precio: 500 },
+  ];
+
+  // ═══════════════════════════════
+  // ESTADO
+  // ═══════════════════════════════
+
+  const clientesExtra = JSON.parse(localStorage.getItem('kiosco_clientes_extra') || '[]');
+  let clientes = [...CLIENTES, ...clientesExtra];
+  let selectedName = null;
+  let quantities = PRODUCTOS.map(() => 0);
+  let registros = JSON.parse(localStorage.getItem('kiosco_registros') || '[]');
+
+  // ═══════════════════════════════
+  // RENDER
+  // ═══════════════════════════════
+
+  function renderNameGrid() {
+    const sel = document.getElementById('nameSelect');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— Selecciona tu nombre —</option>' +
+      clientes.map(n => `<option value="${n}"${n === selectedName ? ' selected' : ''}>${n}</option>`).join('');
+    if (prev) sel.value = prev;
+    sel.classList.toggle('has-value', !!sel.value);
+  }
+
+  function init() {
+    renderNameGrid();
+
+    // Productos
+    const list = document.getElementById('productList');
+    list.innerHTML = PRODUCTOS.map((p, i) => `
+      <div class="product-row" id="row-${i}">
+        <div class="product-info">
+          <div class="product-name">${p.nombre}</div>
+          <div class="product-price">$${p.precio.toLocaleString('es-AR')}</div>
+        </div>
+        <div class="qty-control">
+          <button class="qty-btn minus" onclick="changeQty(${i}, -1)">−</button>
+          <span class="qty-count" id="qty-${i}">0</span>
+          <button class="qty-btn plus" onclick="changeQty(${i}, +1)">+</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ═══════════════════════════════
+  // LÓGICA
+  // ═══════════════════════════════
+
+  function selectName() {
+    const sel = document.getElementById('nameSelect');
+    selectedName = sel.value || null;
+    sel.classList.toggle('has-value', !!sel.value);
+    document.getElementById('newClientInput').value = '';
+    document.getElementById('btnAddClient').disabled = true;
+    document.getElementById('btnToProducts').disabled = !selectedName;
+  }
+
+  function onNewClientType() {
+    const val = document.getElementById('newClientInput').value.trim();
+    document.getElementById('btnAddClient').disabled = val.length < 2;
+    if (val.length > 0) {
+      document.querySelectorAll('.name-btn').forEach(b => b.classList.remove('selected'));
+      selectedName = null;
+      document.getElementById('btnToProducts').disabled = true;
+    }
+  }
+
+  function addNewClient() {
+    const input = document.getElementById('newClientInput');
+    const name = input.value.trim();
+    if (name.length < 2) return;
+
+    const exists = clientes.find(c => c.toLowerCase() === name.toLowerCase());
+    const finalName = exists || name;
+
+    if (!exists) {
+      clientes.push(name);
+      const extra = clientes.filter(c => !CLIENTES.includes(c));
+      localStorage.setItem('kiosco_clientes_extra', JSON.stringify(extra));
+    }
+
+    selectedName = finalName;
+    renderNameGrid();
+    document.getElementById('nameSelect').value = finalName;
+    document.getElementById('nameSelect').classList.add('has-value');
+    document.getElementById('btnToProducts').disabled = false;
+
+    input.value = '';
+    document.getElementById('btnAddClient').disabled = true;
+  }
+
+  function changeQty(i, delta) {
+    quantities[i] = Math.max(0, quantities[i] + delta);
+    document.getElementById(`qty-${i}`).textContent = quantities[i];
+    document.getElementById(`row-${i}`).classList.toggle('has-items', quantities[i] > 0);
+
+    const hasItems = quantities.some(q => q > 0);
+    document.getElementById('btnConfirm').disabled = !hasItems;
+  }
+
+  function goToProducts() {
+    document.getElementById('selectedNameLabel').textContent = selectedName;
+    showScreen(2);
+  }
+
+  function goToSummary() {
+    const list = document.getElementById('summaryList');
+    let items = [];
+    let total = 0;
+
+    quantities.forEach((q, i) => {
+      if (q > 0) {
+        const subtotal = q * PRODUCTOS[i].precio;
+        total += subtotal;
+        items.push(`
+          <div class="summary-row">
+            <span>${q}x ${PRODUCTOS[i].nombre}</span>
+            <span>$${subtotal.toLocaleString('es-CL')}</span>
+          </div>
+        `);
+      }
+    });
+
+    items.push(`
+      <div class="total-row">
+        <span>TOTAL</span>
+        <span>$${total.toLocaleString('es-AR')}</span>
+      </div>
+    `);
+
+    list.innerHTML = items.join('');
+    showScreen(3);
+  }
+
+  const SHEETS_URL = 'https://script.google.com/macros/s/AKfycby69L2t0yP7eCpYwHw_ixSmTSQCj3-U_Rk8gNlT6gv7AYebE8PmHeAx6Kfcd6e0-A6N/exec';
+
+  function confirm() {
+    const fecha = new Date().toLocaleString('es-CL');
+    let items = [];
+    let total = 0;
+
+    quantities.forEach((q, i) => {
+      if (q > 0) {
+        const subtotal = q * PRODUCTOS[i].precio;
+        total += subtotal;
+        items.push({ producto: PRODUCTOS[i].nombre, cantidad: q, precio: PRODUCTOS[i].precio, subtotal });
+      }
+    });
+
+    const registro = { fecha, cliente: selectedName, items, total };
+
+    // Guardar local como respaldo
+    registros.push(registro);
+    localStorage.setItem('kiosco_registros', JSON.stringify(registros));
+
+    // Mostrar pantalla de éxito de inmediato
+    document.getElementById('successMsg').innerHTML =
+      `<strong>${selectedName}</strong>, se anotaron $${total.toLocaleString('es-CL')} el ${fecha}.<br><br>¡Gracias, que lo disfrutes!`;
+    showScreen(4);
+
+    // Enviar a Google Sheets usando un iframe oculto para evitar CORS
+    enviarASheets(registro);
+  }
+
+  function enviarASheets(registro) {
+    // Creamos un iframe y un form ocultos que hacen POST directo a Apps Script
+    const iframe = document.createElement('iframe');
+    iframe.name = 'sheets_iframe_' + Date.now();
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = SHEETS_URL;
+    form.target = iframe.name;
+    form.style.display = 'none';
+
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'payload';
+    input.value = JSON.stringify(registro);
+    form.appendChild(input);
+
+    document.body.appendChild(form);
+    form.submit();
+
+    // Limpiar después de 5 segundos
+    setTimeout(() => {
+      document.body.removeChild(form);
+      document.body.removeChild(iframe);
+    }, 5000);
+  }
+
+  function goBack(screen) { showScreen(screen); }
+
+  function reset() {
+    selectedName = null;
+    quantities = PRODUCTOS.map(() => 0);
+    const sel = document.getElementById('nameSelect');
+    sel.value = '';
+    sel.classList.remove('has-value');
+    quantities.forEach((_, i) => {
+      document.getElementById(`qty-${i}`).textContent = '0';
+      document.getElementById(`row-${i}`).classList.remove('has-items');
+    });
+    document.getElementById('newClientInput').value = '';
+    document.getElementById('btnAddClient').disabled = true;
+    document.getElementById('btnToProducts').disabled = true;
+    document.getElementById('btnConfirm').disabled = true;
+    showScreen(1);
+  }
+
+  function showScreen(n) {
+    [1,2,3,4].forEach(i => {
+      document.getElementById(`screen${i}`).classList.toggle('hidden', i !== n);
+    });
+    ['dot1','dot2','dot3'].forEach((id, i) => {
+      const dot = document.getElementById(id);
+      dot.classList.toggle('active', i + 1 === n);
+      dot.classList.toggle('done', i + 1 < n);
+    });
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  }
+
+  // ═══════════════════════════════
+  // PANEL ADMIN (doble tap en header)
+  // ═══════════════════════════════
+  let tapCount = 0;
+  document.querySelector('header h1').addEventListener('click', () => {
+    tapCount++;
+    if (tapCount >= 3) {
+      tapCount = 0;
+      showAdmin();
+    }
+    setTimeout(() => tapCount = 0, 1000);
+  });
+
+  function showAdmin() {
+    const data = JSON.parse(localStorage.getItem('kiosco_registros') || '[]');
+    if (data.length === 0) { alert('No hay registros todavía.'); return; }
+
+    const totales = {};
+    data.forEach(r => {
+      totales[r.cliente] = (totales[r.cliente] || 0) + r.total;
+    });
+
+    let txt = '📋 RESUMEN DEL MES\n\n';
+    Object.entries(totales).sort((a,b) => b[1]-a[1]).forEach(([nombre, total]) => {
+      txt += `${nombre}: $${total.toLocaleString('es-CL')}\n`;
+    });
+    txt += `\nTotal de registros: ${data.length}`;
+
+    alert(txt);
+  }
+
+  init();
+</script>
+</body>
+</html>
